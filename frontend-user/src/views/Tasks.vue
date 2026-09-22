@@ -7,6 +7,14 @@
         <p class="subtitle">管理您的所有预约、报名和订单</p>
       </div>
       <div class="header-actions">
+        <button class="review-entry" @click="$router.push('/reviews')">
+          <span class="review-entry-icon">⭐</span>
+          <span class="review-entry-text">
+            <span class="review-entry-title">评价中心</span>
+            <span class="review-entry-sub">{{ reviewPendingCount }} 个项目待评价</span>
+          </span>
+          <span v-if="reviewPendingCount > 0" class="review-entry-badge">{{ reviewPendingCount }}</span>
+        </button>
         <div class="stats-summary">
         <div class="stat-item pending">
           <span class="stat-icon">⏳</span>
@@ -243,6 +251,7 @@ import Toast from '../components/Toast.vue'
 import { logger } from '../utils/api'
 import { authState } from '../utils/auth'
 import { taskStore } from '../utils/taskStore'
+import { reviewStore } from '../utils/reviewStore'
 
 export default {
   name: 'Tasks',
@@ -274,7 +283,9 @@ export default {
     },
     allTasks() {
       this.refreshKey
-      return taskStore.getAll()
+      // 评价按钮的展示状态由 reviewStore 按统一规则装饰：
+      // 已完成未评价 -> 去评价；已评价 -> 查看评价；未完成/已取消 -> 无评价入口
+      return reviewStore.decorateTasks(taskStore.getAll())
     },
     pendingTasks() {
       return this.allTasks.filter(task => task.status !== 'completed' && task.status !== 'cancelled')
@@ -287,6 +298,10 @@ export default {
     },
     completedCount() {
       return this.completedTasks.length
+    },
+    reviewPendingCount() {
+      this.refreshKey
+      return reviewStore.getPendingCount()
     },
     currentTabTasks() {
       return this.activeTab === 'pending' ? this.pendingTasks : this.completedTasks
@@ -325,7 +340,13 @@ export default {
     },
     handleAction(task, action) {
       this.selectedTask = { ...task }
-      
+
+      // 评价相关动作统一进入评价中心，并携带任务ID与目标页签
+      if (action.key === 'review' || action.key === 'view_review') {
+        this.goToReviewCenter(task.id, action.tab || (action.key === 'review' ? 'pending' : 'reviewed'))
+        return
+      }
+
       if (action.route) {
         this.navigateToRoute(action.route, action.key, task)
         return
@@ -339,7 +360,8 @@ export default {
         rebook: () => this.navigateToRoute('/tables', 'rebook', task),
         rebuy: () => this.navigateToRoute('/shop', 'rebuy', task),
         confirm: () => this.handleConfirm(),
-        review: () => this.handleReview()
+        review: () => this.goToReviewCenter(task.id, 'pending'),
+        view_review: () => this.goToReviewCenter(task.id, 'reviewed')
       }
       const handler = actionMap[action.key]
       if (handler) handler()
@@ -427,9 +449,9 @@ export default {
         this.showNotification('success', '确认收货成功', '感谢您的购买')
       }
     },
-    handleReview() {
-      if (!this.selectedTask) return
-      this.showNotification('info', '评价功能', '评价功能开发中，敬请期待')
+    goToReviewCenter(taskId, tab) {
+      logger.info('Navigate to review center', { taskId, tab })
+      this.$router.push({ path: '/reviews', query: { taskId, tab } })
     },
     showNotification(type, title, message) {
       this.toastType = type
@@ -475,6 +497,65 @@ export default {
 .header-actions {
   display: flex;
   align-items: center;
+  gap: 1rem;
+}
+
+.review-entry {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 0.85rem 1.15rem;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-align: left;
+}
+
+.review-entry:hover {
+  border-color: rgba(0, 217, 165, 0.4);
+  box-shadow: var(--shadow-glow);
+  transform: translateY(-2px);
+}
+
+.review-entry-icon {
+  font-size: 1.5rem;
+}
+
+.review-entry-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.review-entry-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.review-entry-sub {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.review-entry-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #ffc107 0%, #ffb300 100%);
+  color: var(--bg-dark);
+  font-size: 0.7rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .stats-summary {

@@ -47,8 +47,8 @@ const taskTypeConfig = {
         { key: 'view', label: '继续学习', type: 'primary', route: '/courses' }
       ],
       completed: [
-        { key: 'view', label: '查看结果', type: 'default' },
-        { key: 'review', label: '评价', type: 'primary' }
+        { key: 'view', label: '查看结果', type: 'default' }
+        // 评价按钮由 reviewStore.decorateTasks 按统一规则附加
       ]
     }
   },
@@ -89,7 +89,7 @@ const taskTypeConfig = {
       ],
       completed: [
         { key: 'view', label: '查看结果', type: 'default', route: '/shop' },
-        { key: 'review', label: '评价', type: 'primary' },
+        // 评价按钮由 reviewStore.decorateTasks 按统一规则附加
         { key: 'rebuy', label: '再次购买', type: 'default', route: '/shop' }
       ]
     }

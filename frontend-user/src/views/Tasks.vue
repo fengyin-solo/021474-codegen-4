@@ -7,6 +7,16 @@
         <p class="subtitle">管理您的所有预约、报名和订单</p>
       </div>
       <div class="header-actions">
+        <router-link to="/reviews" class="review-entry">
+          <span class="review-entry-icon">⭐</span>
+          <span class="review-entry-text">
+            <span class="review-entry-title">评价中心</span>
+            <span class="review-entry-sub">
+              {{ pendingReviewCount > 0 ? pendingReviewCount + ' 个项目待评价' : '查看我的评价' }}
+            </span>
+          </span>
+          <span v-if="pendingReviewCount > 0" class="review-entry-badge">{{ pendingReviewCount }}</span>
+        </router-link>
         <div class="stats-summary">
         <div class="stat-item pending">
           <span class="stat-icon">⏳</span>
@@ -288,6 +298,10 @@ export default {
     completedCount() {
       return this.completedTasks.length
     },
+    pendingReviewCount() {
+      this.refreshKey
+      return taskStore.getPendingReviewCount()
+    },
     currentTabTasks() {
       return this.activeTab === 'pending' ? this.pendingTasks : this.completedTasks
     },
@@ -339,7 +353,8 @@ export default {
         rebook: () => this.navigateToRoute('/tables', 'rebook', task),
         rebuy: () => this.navigateToRoute('/shop', 'rebuy', task),
         confirm: () => this.handleConfirm(),
-        review: () => this.handleReview()
+        review: () => this.goToReview(task),
+        viewReview: () => this.goToReview(task, true)
       }
       const handler = actionMap[action.key]
       if (handler) handler()
@@ -427,9 +442,18 @@ export default {
         this.showNotification('success', '确认收货成功', '感谢您的购买')
       }
     },
-    handleReview() {
-      if (!this.selectedTask) return
-      this.showNotification('info', '评价功能', '评价功能开发中，敬请期待')
+    goToReview(task, viewOnly = false) {
+      // 入口判定与 taskStore 规则保持一致：仅已完成可评价，已取消/未完成不可评价
+      if (!task.canReview) {
+        this.showNotification('warning', '无法评价', '仅已完成的项目可以评价')
+        return
+      }
+      const query = { taskId: task.id }
+      if (viewOnly || task.reviewed) {
+        query.action = 'viewReview'
+      }
+      logger.info('Navigate to review center', { taskId: task.id, reviewed: task.reviewed })
+      this.$router.push({ path: '/reviews', query })
     },
     showNotification(type, title, message) {
       this.toastType = type
@@ -475,6 +499,64 @@ export default {
 .header-actions {
   display: flex;
   align-items: center;
+  gap: 1rem;
+}
+
+.review-entry {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: var(--bg-card);
+  border: 1px solid rgba(0, 217, 165, 0.3);
+  border-radius: 16px;
+  padding: 0.85rem 1.1rem;
+  text-decoration: none;
+  color: var(--text-primary);
+  transition: all 0.3s;
+}
+
+.review-entry:hover {
+  border-color: var(--primary);
+  background: rgba(0, 217, 165, 0.08);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-glow);
+}
+
+.review-entry-icon {
+  font-size: 1.5rem;
+}
+
+.review-entry-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.review-entry-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.review-entry-sub {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.review-entry-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a5a 100%);
+  color: #fff;
+  border-radius: 10px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .stats-summary {
@@ -915,6 +997,15 @@ export default {
   .filter-section {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .header-actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .review-entry {
+    flex: 1;
   }
 
   .tab-group {
